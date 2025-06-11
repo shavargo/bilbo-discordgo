@@ -1,38 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
-	openai "github.com/sashabaranov/go-openai"
+
 	"github.com/bwmarrin/discordgo"
+	openai "github.com/sashabaranov/go-openai"
 )
-
-func aiChat(x string) {
-	client := openai.NewClient(os.Getenv("OPENAI_TOKEN"))
-	resp, err := client.CreateChatCompletion(
-		context.Background(),
-		openai.ChatCompletionRequest{
-			Model: openai.GPT3Dot5Turbo,
-			Messages: []openai.ChatCompletionMessage{
-				{
-					Role:    openai.ChatMessageRoleUser,
-					Content: x,
-				},
-			},
-		},
-	)
-
-	if err != nil {
-		fmt.Printf("ChatCompletion error: %v\n", err)
-		return
-	}
-
-	fmt.Println(resp.Choices[0].Message.Content)
-	return resp.Choices[0].Message.Content
-
-}
 
 func main() {
 	// Create a new session using the DISCORD_TOKEN environment variable from Railway
@@ -63,6 +40,31 @@ func main() {
 
 	// Close the Discord session
 	dg.Close()
+}
+
+func aiChat(x string) {
+	client := openai.NewClient(os.Getenv("OPENAI_TOKEN"))
+	resp, err := client.CreateChatCompletion(
+		context.Background(),
+		openai.ChatCompletionRequest{
+			Model: openai.GPT3Dot5Turbo,
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role:    openai.ChatMessageRoleUser,
+					Content: x,
+				},
+			},
+		},
+	)
+
+	if err != nil {
+		fmt.Printf("ChatCompletion error: %v\n", err)
+		return
+	}
+
+	fmt.Println(resp.Choices[0].Message.Content)
+	return resp.Choices[0].Message.Content
+
 }
 
 func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
