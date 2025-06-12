@@ -42,6 +42,21 @@ func main() {
 	dg.Close()
 }
 
+// messageCreate is called whenever a new message is created in a channel the bot has access to
+func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
+	// Don't proceed if the message author is a bot
+	if m.Author.Bot {
+		return
+	}
+
+	if m.Content != "" {
+		s.ChannelMessageSend(m.ChannelID, aiChat(m.Content))
+		return
+	}
+}
+
+// aiChat sends a message to the OpenAI API and returns the response
+// It uses the OpenAI client to create a chat completion request with the provided message.
 func aiChat(x string) string {
 	// Create a new OpenAI client using the OPENAI_TOKEN environment variable from Railway
 	client := openai.NewClient(os.Getenv("OPENAI_TOKEN"))
@@ -66,21 +81,4 @@ func aiChat(x string) string {
 	fmt.Println(resp.Choices[0].Message.Content)
 	return resp.Choices[0].Message.Content
 
-}
-
-func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// Don't proceed if the message author is a bot
-	if m.Author.Bot {
-		return
-	}
-
-	if m.Content == "ping" {
-		s.ChannelMessageSend(m.ChannelID, aiChat(m.Content))
-		return
-	}
-
-	if m.Content == "hello" {
-		s.ChannelMessageSend(m.ChannelID, aiChat(m.Content))
-		return
-	}
 }
