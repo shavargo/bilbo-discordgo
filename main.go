@@ -35,14 +35,15 @@ func main() {
 	// Wait until Ctrl+C or another signal is received
 	fmt.Println("The bot is now running. Press Ctrl+C to exit.")
 	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
 	// Close the Discord session
 	dg.Close()
 }
 
-func aiChat(x string) {
+func aiChat(x string) string {
+	// Create a new OpenAI client using the OPENAI_TOKEN environment variable from Railway
 	client := openai.NewClient(os.Getenv("OPENAI_TOKEN"))
 	resp, err := client.CreateChatCompletion(
 		context.Background(),
@@ -50,16 +51,16 @@ func aiChat(x string) {
 			Model: openai.GPT3Dot5Turbo,
 			Messages: []openai.ChatCompletionMessage{
 				{
-					Role:    openai.ChatMessageRoleUser,
+					Role:    "user",
 					Content: x,
 				},
 			},
 		},
 	)
-
+	// Handle any errors that occur during the request
 	if err != nil {
 		fmt.Printf("ChatCompletion error: %v\n", err)
-		return
+		return "Sorry, there was an error processing your request."
 	}
 
 	fmt.Println(resp.Choices[0].Message.Content)
