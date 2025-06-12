@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
-	openai "github.com/sashabaranov/go-openai"
+	openai "github.com/sashabaranov/go-gpt3"
 )
 
 func main() {
