@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -48,11 +49,41 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if m.Author.Bot {
 		return
 	}
+	// Initialize a variable to hold the content of the message
+	var content string
 
-	if m.Content != "" {
-		s.ChannelMessageSend(m.ChannelID, aiChat(m.Content))
+	// Check if the message contains "/chat" or "!chat"
+	if strings.Contains(m.Content, "!chat") {
+		content = strings.TrimPrefix(m.Content, "!chat")   // Remove the command prefix
+		s.ChannelMessageSend(m.ChannelID, aiChat(content)) // Call the aiChat function to get a response from the AI
 		return
 	}
+
+	// Check if the message contains "/chat" or "!chat"
+	if strings.Contains(m.Content, "!image") {
+		content = strings.TrimPrefix(m.Content, "!image")   // Remove the command prefix
+		s.ChannelMessageSend(m.ChannelID, aiImage(content)) // Call the aiImage function to generate an image
+		return
+	}
+
+}
+
+func aiImage(x string) string {
+	// Create a new OpenAI client using the OPENAI_TOKEN environment variable from Railway
+	client := openai.NewClient(os.Getenv("OPENAI_TOKEN"))
+	resp, err := client.CreateImage(context.Background(), openai.ImageRequest{
+		Prompt: x,
+		N:      1,
+		Size:   openai.CreateImageSize256x256,
+	})
+	// Handle any errors that occur during the request
+	if err != nil {
+		fmt.Printf("Image generation error: %v\n", err)
+		return "Sorry, there was an error generating the image."
+	}
+
+	fmt.Println(resp.Data[0].URL)
+	return resp.Data[0].URL
 }
 
 // aiChat sends a message to the OpenAI API and returns the response
