@@ -33,9 +33,6 @@ func main() {
 		return
 	}
 
-	// Set the bot's activity status
-	dg.UpdateGameStatus(0, "with your mom!")
-
 	// Wait until Ctrl+C or another signal is received
 	fmt.Println("The bot is now running. Press Ctrl+C to exit.")
 	sc := make(chan os.Signal, 1)
@@ -66,6 +63,13 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	if strings.Contains(m.Content, "!image") {
 		content = strings.TrimPrefix(m.Content, "!image")   // Remove the command prefix
 		s.ChannelMessageSend(m.ChannelID, aiImage(content)) // Call the aiImage function to generate an image
+		return
+	}
+
+	// Check if the message contains "!status"
+	if strings.Contains(m.Content, "!status") {
+		content = strings.TrimPrefix(m.Content, "!status") // Remove the command prefix
+		s.UpdateGameStatus(0, content)                     // Update the bot's status
 		return
 	}
 
