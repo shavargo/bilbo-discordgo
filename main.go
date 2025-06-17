@@ -34,15 +34,7 @@ func main() {
 	}
 
 	// Set the bot's activity status
-	dg.UpdateStatusComplex(discordgo.UpdateStatusData{
-		Activities: []*discordgo.Activity{
-			{
-				Name: "with your mom",
-				Type: 1,
-			},
-		},
-		Status: "online",
-	})
+	dg.UpdateGameStatus(0, "with your mom!")
 
 	// Wait until Ctrl+C or another signal is received
 	fmt.Println("The bot is now running. Press Ctrl+C to exit.")
