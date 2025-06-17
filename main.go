@@ -33,6 +33,17 @@ func main() {
 		return
 	}
 
+	// Set the bot's activity status
+	dg.UpdateStatusComplex(discordgo.UpdateStatusData{
+		Activities: []*discordgo.Activity{
+			{
+				Name: "with your mom",
+				Type: 1,
+			},
+		},
+		Status: "online",
+	})
+
 	// Wait until Ctrl+C or another signal is received
 	fmt.Println("The bot is now running. Press Ctrl+C to exit.")
 	sc := make(chan os.Signal, 1)
@@ -52,14 +63,14 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Initialize a variable to hold the content of the message
 	var content string
 
-	// Check if the message contains "/chat" or "!chat"
+	// Check if the message contains "!chat"
 	if strings.Contains(m.Content, "!chat") {
 		content = strings.TrimPrefix(m.Content, "!chat")   // Remove the command prefix
 		s.ChannelMessageSend(m.ChannelID, aiChat(content)) // Call the aiChat function to get a response from the AI
 		return
 	}
 
-	// Check if the message contains "/chat" or "!chat"
+	// Check if the message contains "!image"
 	if strings.Contains(m.Content, "!image") {
 		content = strings.TrimPrefix(m.Content, "!image")   // Remove the command prefix
 		s.ChannelMessageSend(m.ChannelID, aiImage(content)) // Call the aiImage function to generate an image
