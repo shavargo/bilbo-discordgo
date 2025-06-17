@@ -69,7 +69,7 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	// Check if the message contains "!status"
 	if strings.Contains(m.Content, "!status") {
 		content = strings.TrimPrefix(m.Content, "!status") // Remove the command prefix
-		s.UpdateGameStatus(1, content)                     // Update the bot's status
+		s.UpdateListeningStatus(content)                   // Update the bot's status
 		return
 	}
 
