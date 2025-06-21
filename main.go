@@ -66,13 +66,6 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 		return
 	}
 
-	// Check if the message contains "!status"
-	if strings.Contains(m.Content, "!status") {
-		content = strings.TrimPrefix(m.Content, "!status") // Remove the command prefix
-		s.UpdateListeningStatus(content)                   // Update the bot's status
-		return
-	}
-
 }
 
 func aiImage(x string) string {
