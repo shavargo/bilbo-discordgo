@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/bwmarrin/discordgo"
@@ -19,9 +18,53 @@ func main() {
 		fmt.Printf("Error while starting bot: %s", err)
 		return
 	}
+	// Register the slash command
+	cmd := &discordgo.ApplicationCommand{
+		Name:        "chat",
+		Description: "Chat with the AI",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "prompt",
+				Description: "What do you want to say to the AI?",
+				Required:    true,
+			},
+		},
+	}
+	_, err = dg.ApplicationCommandCreate(os.Getenv("DISCORD_APP_ID"), os.Getenv("DISCORD_GUILD_ID"), cmd)
+	if err != nil {
+		fmt.Printf("Cannot create slash command: %v\n", err)
+		return
+	}
 
-	// Add the message handler
-	dg.AddHandler(messageCreate)
+	dg.AddHandler(func(
+		s *discordgo.Session,
+		i *discordgo.InteractionCreate,
+	) {
+		data := i.ApplicationCommandData()
+		switch data.Name {
+		case "chat":
+			var prompt string
+			for _, opt := range data.Options {
+				if opt.Name == "prompt" {
+					prompt = opt.StringValue()
+				}
+			}
+			response := aiChat(prompt)
+			err := s.InteractionRespond(
+				i.Interaction,
+				&discordgo.InteractionResponse{
+					Type: discordgo.InteractionResponseChannelMessageWithSource,
+					Data: &discordgo.InteractionResponseData{
+						Content: response,
+					},
+				},
+			)
+			if err != nil {
+				fmt.Printf("InteractionRespond error: %v\n", err)
+			}
+		}
+	})
 
 	// Add the Guild Messages intent
 	dg.Identify.Intents = discordgo.IntentsGuildMessages
@@ -43,31 +86,7 @@ func main() {
 	dg.Close()
 }
 
-// messageCreate is called whenever a new message is created in a channel the bot has access to
-func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
-	// Don't proceed if the message author is a bot
-	if m.Author.Bot {
-		return
-	}
-	// Initialize a variable to hold the content of the message
-	var content string
-
-	// Check if the message contains "!chat"
-	if strings.Contains(m.Content, "!chat") {
-		content = strings.TrimPrefix(m.Content, "!chat")   // Remove the command prefix
-		s.ChannelMessageSend(m.ChannelID, aiChat(content)) // Call the aiChat function to get a response from the AI
-		return
-	}
-
-	// Check if the message contains "!image"
-	if strings.Contains(m.Content, "!image") {
-		content = strings.TrimPrefix(m.Content, "!image")   // Remove the command prefix
-		s.ChannelMessageSend(m.ChannelID, aiImage(content)) // Call the aiImage function to generate an image
-		return
-	}
-
-}
-
+// aiImage generates an image based on the provided prompt using the OpenAI API
 func aiImage(x string) string {
 	// Create a new OpenAI client using the OPENAI_TOKEN environment variable from Railway
 	client := openai.NewClient(os.Getenv("OPENAI_TOKEN"))
