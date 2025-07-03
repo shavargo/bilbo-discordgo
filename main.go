@@ -18,25 +18,6 @@ func main() {
 		fmt.Printf("Error while starting bot: %s", err)
 		return
 	}
-	// Register the slash command
-	cmd := &discordgo.ApplicationCommand{
-		Name:        "chat",
-		Description: "Chat with the AI",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "prompt",
-				Description: "What do you want to say to the AI?",
-				Required:    true,
-			},
-		},
-	}
-	_, err = dg.ApplicationCommandCreate(os.Getenv("DISCORD_APP_ID"), os.Getenv("DISCORD_GUILD_ID"), cmd)
-	if err != nil {
-		fmt.Printf("Cannot create slash command: %v\n", err)
-		return
-	}
-
 	dg.AddHandler(func(
 		s *discordgo.Session,
 		i *discordgo.InteractionCreate,
@@ -65,6 +46,45 @@ func main() {
 			}
 		}
 	})
+
+	// Add the Guild Messages intent
+	dg.Identify.Intents = discordgo.IntentsGuildMessages
+
+	// Connect to the gateway
+	err = dg.Open()
+	if err != nil {
+		fmt.Printf("Error while connecting to gateway: %s", err)
+		return
+	}
+
+	// Register the slash command after opening the session
+	appID := os.Getenv("DISCORD_APP_ID")
+	guildID := os.Getenv("DISCORD_GUILD_ID")
+	cmd := &discordgo.ApplicationCommand{
+		Name:        "chat",
+		Description: "Chat with the AI",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        "prompt",
+				Description: "What do you want to say to the AI?",
+				Required:    true,
+			},
+		},
+	}
+	createdCmd, err := dg.ApplicationCommandCreate(appID, guildID, cmd)
+	if err != nil {
+		fmt.Printf("Cannot create slash command: %v\n", err)
+		dg.Close()
+		return
+	}
+	// Clean up the command on shutdown
+	defer func() {
+		err := dg.ApplicationCommandDelete(appID, guildID, createdCmd.ID)
+		if err != nil {
+			fmt.Printf("Cannot delete slash command: %v\n", err)
+		}
+	}()
 
 	// Add the Guild Messages intent
 	dg.Identify.Intents = discordgo.IntentsGuildMessages
