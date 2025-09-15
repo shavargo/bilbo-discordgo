@@ -104,6 +104,7 @@ func init() {
 }
 
 func main() {
+
 	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
 	})
@@ -126,6 +127,15 @@ func main() {
 			}
 			registeredCommands = append(registeredCommands, cmd)
 		}
+		s.UpdateStatusComplex(discordgo.UpdateStatusData{
+			Status: "online",
+			Activities: []*discordgo.Activity{
+				{
+					Name: "Riddles",
+					Type: discordgo.ActivityTypeGame,
+				},
+			},
+		})
 	}
 
 	defer s.Close()
