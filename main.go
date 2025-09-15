@@ -120,12 +120,15 @@ func main() {
 		log.Fatalf("Cannot fetch guilds: %v", err)
 	}
 	for _, guild := range guilds {
-		for _, v := range commands {
-			cmd, err := s.ApplicationCommandCreate(s.State.User.ID, guild.ID, v)
-			if err != nil {
-				log.Panicf("Cannot create '%v' command in guild '%v': %v", v.Name, guild.ID, err)
+		// Only register commands if they haven't been registered yet for this guild
+		if len(registeredCommands) == 0 {
+			for _, v := range commands {
+				cmd, err := s.ApplicationCommandCreate(s.State.User.ID, guild.ID, v)
+				if err != nil {
+					log.Panicf("Cannot create '%v' command in guild '%v': %v", v.Name, guild.ID, err)
+				}
+				registeredCommands = append(registeredCommands, cmd)
 			}
-			registeredCommands = append(registeredCommands, cmd)
 		}
 		s.UpdateStatusComplex(discordgo.UpdateStatusData{
 			Status: "online",
