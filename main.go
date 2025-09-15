@@ -2,114 +2,153 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"github.com/bwmarrin/discordgo"
 	openai "github.com/sashabaranov/go-gpt3"
 )
 
-func main() {
-	// Create a new session using the DISCORD_TOKEN environment variable from Railway
-	dg, err := discordgo.New("Bot " + os.Getenv("DISCORD_TOKEN"))
+var token = os.Getenv("DISCORD_TOKEN")
+
+var aitoken = os.Getenv("OPENAI_TOKEN")
+
+var GuildID = os.Getenv("DISCORD_GUILD_ID")
+var RemoveCommands = flag.Bool("remove-commands", false, "Remove commands on shutdown")
+
+var s *discordgo.Session
+
+func init() { flag.Parse() }
+
+func init() {
+	var err error
+	s, err = discordgo.New("Bot " + token)
 	if err != nil {
-		fmt.Printf("Error while starting bot: %s", err)
-		return
+		log.Fatalf("Invalid bot parameters: %v", err)
 	}
-	dg.AddHandler(func(
-		s *discordgo.Session,
-		i *discordgo.InteractionCreate,
-	) {
-		data := i.ApplicationCommandData()
-		switch data.Name {
-		case "chat":
-			var prompt string
-			for _, opt := range data.Options {
-				if opt.Name == "prompt" {
-					prompt = opt.StringValue()
-				}
-			}
-			response := aiChat(prompt)
-			err := s.InteractionRespond(
-				i.Interaction,
-				&discordgo.InteractionResponse{
-					Type: discordgo.InteractionResponseChannelMessageWithSource,
-					Data: &discordgo.InteractionResponseData{
-						Content: response,
-					},
+}
+
+var (
+	integerOptionMinValue          = 1.0
+	dmPermission                   = false
+	defaultMemberPermissions int64 = discordgo.PermissionManageGuild
+
+	commands = []*discordgo.ApplicationCommand{
+		{
+			Name:        "chat",
+			Description: "Chat with Bilbo",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "prompt",
+					Description: "Your message to Bilbo",
+					Required:    true,
 				},
-			)
-			if err != nil {
-				fmt.Printf("InteractionRespond error: %v\n", err)
-			}
-		}
-	})
-
-	// Add the Guild Messages intent
-	dg.Identify.Intents = discordgo.IntentsGuildMessages
-
-	// Connect to the gateway
-	err = dg.Open()
-	if err != nil {
-		fmt.Printf("Error while connecting to gateway: %s", err)
-		return
-	}
-
-	// Register the slash command after opening the session
-	appID := os.Getenv("DISCORD_APP_ID")
-	guildID := os.Getenv("DISCORD_GUILD_ID")
-	cmd := &discordgo.ApplicationCommand{
-		Name:        "chat",
-		Description: "Chat with the AI",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "prompt",
-				Description: "What do you want to say to the AI?",
-				Required:    true,
+			},
+		},
+		{
+			Name:        "image",
+			Description: "Generate an image with Bilbo",
+			Options: []*discordgo.ApplicationCommandOption{
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "prompt",
+					Description: "Your image prompt to Bilbo",
+					Required:    true,
+				},
 			},
 		},
 	}
-	createdCmd, err := dg.ApplicationCommandCreate(appID, guildID, cmd)
-	if err != nil {
-		fmt.Printf("Cannot create slash command: %v\n", err)
-		dg.Close()
-		return
+
+	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
+		"chat": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			var prompt string
+			for _, opt := range i.ApplicationCommandData().Options {
+				if opt.Name == "prompt" {
+					prompt = opt.StringValue()
+					break
+				}
+			}
+			response := aiChat(prompt)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: response,
+				},
+			})
+		},
+		"image": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			var prompt string
+			for _, opt := range i.ApplicationCommandData().Options {
+				if opt.Name == "prompt" {
+					prompt = opt.StringValue()
+					break
+				}
+			}
+			response := aiImage(prompt)
+			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Content: response,
+				},
+			})
+		},
 	}
-	// Clean up the command on shutdown
-	defer func() {
-		err := dg.ApplicationCommandDelete(appID, guildID, createdCmd.ID)
-		if err != nil {
-			fmt.Printf("Cannot delete slash command: %v\n", err)
+)
+
+func init() {
+	s.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+		if h, ok := commandHandlers[i.ApplicationCommandData().Name]; ok {
+			h(s, i)
 		}
-	}()
+	})
+}
 
-	// Add the Guild Messages intent
-	dg.Identify.Intents = discordgo.IntentsGuildMessages
-
-	// Connect to the gateway
-	err = dg.Open()
+func main() {
+	s.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
+		log.Printf("Logged in as: %v#%v", s.State.User.Username, s.State.User.Discriminator)
+	})
+	err := s.Open()
 	if err != nil {
-		fmt.Printf("Error while connecting to gateway: %s", err)
-		return
+		log.Fatalf("Cannot open the session: %v", err)
 	}
 
-	// Wait until Ctrl+C or another signal is received
-	fmt.Println("The bot is now running. Press Ctrl+C to exit.")
-	sc := make(chan os.Signal, 1)
-	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
-	<-sc
+	log.Println("Adding commands...")
+	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands))
+	for i, v := range commands {
+		cmd, err := s.ApplicationCommandCreate(s.State.User.ID, "", v) // Use "" for global commands
+		if err != nil {
+			log.Panicf("Cannot create '%v' command: %v", v.Name, err)
+		}
+		registeredCommands[i] = cmd
+	}
 
-	// Close the Discord session
-	dg.Close()
+	defer s.Close()
+
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+	log.Println("Press Ctrl+C to exit")
+	<-stop
+	if *RemoveCommands {
+		log.Println("Removing commands...")
+		for _, v := range registeredCommands {
+			err := s.ApplicationCommandDelete(s.State.User.ID, "", v.ID)
+			if err != nil {
+				log.Panicf("Cannot delete '%v' command: %v", v.Name, err)
+			}
+		}
+	}
+
+	log.Println("Gracefully shutting down.")
 }
 
 // aiImage generates an image based on the provided prompt using the OpenAI API
 func aiImage(x string) string {
 	// Create a new OpenAI client using the OPENAI_TOKEN environment variable from Railway
-	client := openai.NewClient(os.Getenv("OPENAI_TOKEN"))
+	client := openai.NewClient(aitoken)
 	resp, err := client.CreateImage(context.Background(), openai.ImageRequest{
 		Prompt: x,
 		N:      1,
@@ -129,7 +168,7 @@ func aiImage(x string) string {
 // It uses the OpenAI client to create a chat completion request with the provided message.
 func aiChat(x string) string {
 	// Create a new OpenAI client using the OPENAI_TOKEN environment variable from Railway
-	client := openai.NewClient(os.Getenv("OPENAI_TOKEN"))
+	client := openai.NewClient(aitoken)
 	resp, err := client.CreateChatCompletion(
 		context.Background(),
 		openai.ChatCompletionRequest{
