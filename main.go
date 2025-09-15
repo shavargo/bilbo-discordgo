@@ -32,10 +32,6 @@ func init() {
 }
 
 var (
-	integerOptionMinValue          = 1.0
-	dmPermission                   = false
-	defaultMemberPermissions int64 = discordgo.PermissionManageGuild
-
 	commands = []*discordgo.ApplicationCommand{
 		{
 			Name:        "chat",
@@ -117,13 +113,19 @@ func main() {
 	}
 
 	log.Println("Adding commands...")
-	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands))
-	for i, v := range commands {
-		cmd, err := s.ApplicationCommandCreate(s.State.User.ID, "", v) // Use "" for global commands
-		if err != nil {
-			log.Panicf("Cannot create '%v' command: %v", v.Name, err)
+	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
+	guilds, err := s.UserGuilds(100, "", "", false)
+	if err != nil {
+		log.Fatalf("Cannot fetch guilds: %v", err)
+	}
+	for _, guild := range guilds {
+		for _, v := range commands {
+			cmd, err := s.ApplicationCommandCreate(s.State.User.ID, guild.ID, v)
+			if err != nil {
+				log.Panicf("Cannot create '%v' command in guild '%v': %v", v.Name, guild.ID, err)
+			}
+			registeredCommands = append(registeredCommands, cmd)
 		}
-		registeredCommands[i] = cmd
 	}
 
 	defer s.Close()
