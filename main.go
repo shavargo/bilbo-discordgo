@@ -17,7 +17,6 @@ var token = os.Getenv("DISCORD_TOKEN")
 var aitoken = os.Getenv("OPENAI_TOKEN")
 
 var GuildID = os.Getenv("DISCORD_GUILD_ID")
-var RemoveCommands = flag.Bool("remove-commands", true, "Remove commands on shutdown")
 
 var s *discordgo.Session
 
@@ -147,12 +146,12 @@ func main() {
 	signal.Notify(stop, os.Interrupt)
 	log.Println("Press Ctrl+C to exit")
 	<-stop
-	if *RemoveCommands {
-		log.Println("Removing commands...")
+	for _, guild := range guilds {
+		log.Println("Removing commands from guild:", guild.ID)
 		for _, v := range registeredCommands {
-			err := s.ApplicationCommandDelete(s.State.User.ID, "", v.ID)
+			err := s.ApplicationCommandDelete(s.State.User.ID, guild.ID, v.ID)
 			if err != nil {
-				log.Panicf("Cannot delete '%v' command: %v", v.Name, err)
+				log.Printf("Cannot delete '%v' command from guild '%v': %v", v.Name, guild.ID, err)
 			}
 		}
 	}
