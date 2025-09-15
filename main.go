@@ -17,7 +17,7 @@ var token = os.Getenv("DISCORD_TOKEN")
 var aitoken = os.Getenv("OPENAI_TOKEN")
 
 var GuildID = os.Getenv("DISCORD_GUILD_ID")
-var RemoveCommands = flag.Bool("remove-commands", false, "Remove commands on shutdown")
+var RemoveCommands = flag.Bool("remove-commands", true, "Remove commands on shutdown")
 
 var s *discordgo.Session
 
