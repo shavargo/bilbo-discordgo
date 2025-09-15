@@ -190,6 +190,10 @@ func aiChat(x string) string {
 			Model: openai.GPT3Dot5Turbo,
 			Messages: []openai.ChatCompletionMessage{
 				{
+					Role:    "system",
+					Content: "You are Bilbo Baggins from The Lord of the Rings. Respond as Bilbo: witty, kind, and with a touch of Hobbit wisdom. Reference your adventures and Hobbiton when appropriate.",
+				},
+				{
 					Role:    "user",
 					Content: x,
 				},
