@@ -133,14 +133,12 @@ func main() {
 func registerCommands(guilds []*discordgo.UserGuild) []*discordgo.ApplicationCommand {
 	registeredCommands := make([]*discordgo.ApplicationCommand, 0)
 	for _, guild := range guilds {
-		for _, cmd := range commands {
-			registered, err := session.ApplicationCommandCreate(session.State.User.ID, guild.ID, cmd)
-			if err != nil {
-				log.Printf("Cannot create '%v' command in guild '%v': %v", cmd.Name, guild.ID, err)
-				continue
-			}
-			registeredCommands = append(registeredCommands, registered)
+		registered, err := session.ApplicationCommandBulkOverwrite(session.State.User.ID, guild.ID, commands)
+		if err != nil {
+			log.Printf("Cannot register commands in guild '%v': %v", guild.ID, err)
+			continue
 		}
+		registeredCommands = append(registeredCommands, registered...)
 	}
 	return registeredCommands
 }
